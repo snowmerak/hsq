@@ -171,3 +171,21 @@ func TestITrie_ConcurrentInsertAndDelete(t *testing.T) {
 		return true
 	})
 }
+
+func BenchmarkITrie_InsertAndDelete(b *testing.B) {
+	trie := itrie.New[int]()
+	wg := sync.WaitGroup{}
+	for i := 0; i < b.N; i++ {
+		key := rand.Uint64()
+		wg.Add(2)
+		go func() {
+			trie.Insert(key, &i)
+			wg.Done()
+		}()
+		go func() {
+			trie.Delete(key)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
