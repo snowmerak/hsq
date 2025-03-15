@@ -15,8 +15,8 @@ type CommonHeader struct {
 	MessageSequence    uint16 `json:"message_sequence"`
 }
 
-func (h *CommonHeader) Key() uint64 {
-	return uint64(h.MessageType)<<32 + uint64(h.MessageID)
+func (h *CommonHeader) Key() (uint32, uint32) {
+	return h.Sender, h.MessageID
 }
 
 func (h *CommonHeader) Parse(ctx context.Context, chunkSize int, message Message, callbackPerSeq func(context.Context, []byte) error) error {
