@@ -9,22 +9,26 @@ import (
 
 type CommonHeader struct {
 	MessageType        int8   `json:"message_type"`
-	Sender             string `json:"sender"`
-	MessageID          uint64 `json:"message_id"`
+	Sender             uint32 `json:"sender"`
+	MessageID          uint32 `json:"message_id"`
 	MessageMaxSequence uint16 `json:"message_max_sequence"`
 	MessageSequence    uint16 `json:"message_sequence"`
 }
 
+func (h *CommonHeader) Key() uint64 {
+	return uint64(h.MessageType)<<32 + uint64(h.MessageID)
+}
+
 func (h *CommonHeader) Parse(ctx context.Context, chunkSize int, message Message, callbackPerSeq func(context.Context, []byte) error) error {
-	headerLength := 1 + 4 + len(h.Sender) + 8 + 2 + 2
+	headerLength := 1 + 4 + 4 + 8 + 2 + 2
 	bw := bytes.NewBuffer(make([]byte, headerLength))
 	if err := SerializeInt8(bw, h.MessageType); err != nil {
 		return err
 	}
-	if err := SerializeString(bw, h.Sender); err != nil {
+	if err := SerializeUint32(bw, h.Sender); err != nil {
 		return err
 	}
-	if err := SerializeUint64(bw, h.MessageID); err != nil {
+	if err := SerializeUint32(bw, h.MessageID); err != nil {
 		return err
 	}
 
@@ -80,14 +84,14 @@ func SerializeCommonHeader(r io.Reader, header *CommonHeader) error {
 
 	header.MessageType = mt
 
-	sender, err := DeserializeString(r)
+	sender, err := DeserializeUint32(r)
 	if err != nil {
 		return err
 	}
 
 	header.Sender = sender
 
-	messageID, err := DeserializeUint64(r)
+	messageID, err := DeserializeUint32(r)
 	if err != nil {
 		return err
 	}
