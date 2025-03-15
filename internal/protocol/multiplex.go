@@ -1,10 +1,12 @@
 package protocol
 
-import "math"
+import (
+	"github.com/lemon-mint/hsq/internal/protocol/itrie"
+)
 
 type MultiplexBuffer struct {
 }
 
 type Multiplexer struct {
-	slot [math.MaxUint64]*MultiplexBuffer
+	slot *itrie.ITrie[MultiplexBuffer]
 }
