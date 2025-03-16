@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"io"
 
 	"github.com/lemon-mint/hsq/internal/protocol/itrie"
 )
@@ -19,7 +20,7 @@ func NewMultiplexer() *Multiplexer {
 	return &Multiplexer{slot: itrie.New[MultiplexBuffer]()}
 }
 
-func (m *Multiplexer) Append(commonHeader *CommonHeader, data []byte) error {
+func (m *Multiplexer) Append(commonHeader *CommonHeader, data []byte) (io.Reader, bool, error) {
 	key1, key2 := commonHeader.Key()
 	key := (uint64(key1) << 32) | uint64(key2)
 	buffer := m.slot.Search(key)
@@ -31,5 +32,12 @@ func (m *Multiplexer) Append(commonHeader *CommonHeader, data []byte) error {
 		buffer = m.slot.InsertIfNotExists(key, buffer)
 	}
 	buffer.Buffer.Write(data)
-	return nil
+
+	switch commonHeader.MessageSequence {
+	case commonHeader.MessageMaxSequence:
+		m.slot.Delete(key)
+		return buffer.Buffer, true, nil
+	default:
+		return nil, false, nil
+	}
 }
