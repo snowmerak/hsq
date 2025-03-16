@@ -5,7 +5,7 @@ import "sync/atomic"
 type Node[T any] struct {
 	slot          [256]atomic.Pointer[Node[T]]
 	childrenCount atomic.Int64
-	data          *T
+	data          atomic.Pointer[T]
 }
 
 type ITrie[T any] struct {
@@ -30,7 +30,25 @@ func (t *ITrie[T]) Insert(key uint64, value *T) {
 		nextNode.childrenCount.Add(1)
 		node = nextNode
 	}
-	node.data = value
+	node.data.Store(value)
+}
+
+func (t *ITrie[T]) InsertIfNotExists(key uint64, value *T) *T {
+	node := t.head
+	for i := 0; i < 8; i++ {
+		index := (key >> (56 - i*8)) & 0xff
+		if node.slot[index].Load() == nil {
+			node.slot[index].CompareAndSwap(nil, &Node[T]{})
+		}
+		nextNode := node.slot[index].Load()
+		if nextNode.childrenCount.Load() == -1 {
+			node.slot[index].CompareAndSwap(nextNode, &Node[T]{})
+		}
+		nextNode.childrenCount.Add(1)
+		node = nextNode
+	}
+	node.data.CompareAndSwap(nil, value)
+	return node.data.Load()
 }
 
 func (t *ITrie[T]) Search(key uint64) *T {
@@ -42,7 +60,7 @@ func (t *ITrie[T]) Search(key uint64) *T {
 		}
 		node = node.slot[index].Load()
 	}
-	return node.data
+	return node.data.Load()
 }
 
 func (t *ITrie[T]) Delete(key uint64) {
@@ -57,7 +75,7 @@ func (t *ITrie[T]) Delete(key uint64) {
 		node = node.slot[index].Load()
 		paths = append(paths, node)
 	}
-	node.data = nil
+	node.data.Store(nil)
 	for i := 7; i >= 0; i-- {
 		if paths[i].childrenCount.Add(-1) == 0 && paths[i].childrenCount.CompareAndSwap(0, -1) {
 		}
